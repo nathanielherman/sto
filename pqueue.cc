@@ -5,7 +5,6 @@
 #include <random>
 #include <map>
 #include "Transaction.hh"
-#include "Vector.hh"
 #include "PriorityQueue.hh"
 #include "PriorityQueue1.hh"
 #include "randgen.hh"

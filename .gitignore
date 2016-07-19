@@ -27,10 +27,8 @@
 /singleelems
 /tags
 /trans_test
-/vector
 /hashtable_nostm
 /ht_mt
-/iterators
 /pqVsIt
 /ex-counter
 /unit-rcu

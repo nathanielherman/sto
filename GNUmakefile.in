@@ -66,7 +66,7 @@ ifeq ($(PROFILE),1)
 OPTFLAGS += -g -pg -fno-inline
 endif
 
-PROGRAMS = concurrent singleelems list1 vector pqueue rbtree trans_test ht_mt pqVsIt iterators single predicates ex-counter $(UNIT_PROGRAMS)
+PROGRAMS = concurrent singleelems list1 pqueue rbtree trans_test ht_mt pqVsIt single predicates ex-counter $(UNIT_PROGRAMS)
 UNIT_PROGRAMS = unit-tarray unit-tintpredicate unit-tcounter unit-tbox unit-tgeneric unit-rcu unit-tvector unit-tvector-nopred
 
 all: $(PROGRAMS)
@@ -145,9 +145,6 @@ unit-tvector-nopred: unit-tvector-nopred.o $(STO_DEPS)
 list1: list1.o $(STO_DEPS)
 	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(STO_OBJS) $(LDFLAGS) $(LIBS)
 
-vector: vector.o $(STO_DEPS)
-	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(STO_OBJS) $(LDFLAGS) $(LIBS)
-
 pqueue: pqueue.o $(STO_DEPS)
 	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(STO_OBJS) $(LDFLAGS) $(LIBS)
 
@@ -164,9 +161,6 @@ ht_mt: ht_mt.o $(MSTO_DEPS)
 	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(MSTO_OBJS) $(LDFLAGS) $(LIBS)
 
 pqVsIt: pqVsIt.o $(STO_DEPS)
-	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(STO_OBJS) $(LDFLAGS) $(LIBS)
-
-iterators: iterators.o $(STO_DEPS)
 	$(CXX) $(CXXFLAGS) $(OPTFLAGS) -o $@ $< $(STO_OBJS) $(LDFLAGS) $(LIBS)
 
 predicates: predicates.o $(STO_DEPS)
