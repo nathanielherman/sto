@@ -9,7 +9,7 @@ template <typename T, bool Opaque = true,
 
 namespace TWrappedAccess {
 template <typename T, typename V>
-static T read_atomic(const T* v, TransProxy item, const V& version, bool add_read) {
+static T read_atomic(const T* v, TransProxy item, const V& version, bool remember) {
     // This version returns immediately if v1 is locked. We assume as a result
     // that we will quickly converge to either `v0 == v1` or `v1.is_locked()`,
     // and don't bother to back off.
@@ -20,20 +20,20 @@ static T read_atomic(const T* v, TransProxy item, const V& version, bool add_rea
         fence();
         V v1 = version;
         if (v0 == v1 || v1.is_locked()) {
-            item.observe(v1, add_read);
+            item.observe(v1, remember);
             return result;
         }
         relax_fence();
     }
 }
 template <typename T, typename V>
-static T read_nonatomic(const T* v, TransProxy item, const V& version, bool add_read) {
-    item.observe(version, add_read);
+static T read_nonatomic(const T* v, TransProxy item, const V& version, bool remember) {
+    item.observe(version, remember);
     fence();
     return *v;
 }
 template <typename T, typename V>
-static T read_wait_atomic(const T* v, TransProxy item, const V& version, bool add_read) {
+static T read_wait_atomic(const T* v, TransProxy item, const V& version, bool remember) {
     unsigned n = 0;
     while (1) {
         V v0 = version;
@@ -42,7 +42,7 @@ static T read_wait_atomic(const T* v, TransProxy item, const V& version, bool ad
         fence();
         V v1 = version;
         if (v0 == v1 && !v1.is_locked_elsewhere(item.transaction())) {
-            item.observe(v1, add_read);
+            item.observe(v1, remember);
             return result;
         }
 #if STO_SPIN_EXPBACKOFF
@@ -59,13 +59,13 @@ static T read_wait_atomic(const T* v, TransProxy item, const V& version, bool ad
     }
 }
 template <typename T, typename V>
-static T read_wait_nonatomic(const T* v, TransProxy item, const V& version, bool add_read) {
+static T read_wait_nonatomic(const T* v, TransProxy item, const V& version, bool remember) {
     unsigned n = 0;
     while (1) {
         V v0 = version;
         fence();
         if (!v0.is_locked_elsewhere(item.transaction())) {
-            item.observe(v0, add_read);
+            item.observe(v0, remember);
             return *v;
         }
         relax_fence();
@@ -102,8 +102,8 @@ public:
     read_type snapshot(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, false);
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return TWrappedAccess::read_wait_atomic(&v_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return TWrappedAccess::read_wait_atomic(&v_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, true);
@@ -141,8 +141,8 @@ public:
     read_type snapshot(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, false);
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return TWrappedAccess::read_wait_atomic(&v_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return TWrappedAccess::read_wait_atomic(&v_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, true);
@@ -186,8 +186,8 @@ public:
     read_type snapshot(TransProxy, const version_type&) const {
         return v_;
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return TWrappedAccess::read_wait_nonatomic(&v_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return TWrappedAccess::read_wait_nonatomic(&v_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_nonatomic(&v_, item, version, true);
@@ -231,8 +231,8 @@ public:
     read_type snapshot(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, false);
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return TWrappedAccess::read_wait_atomic(&v_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return TWrappedAccess::read_wait_atomic(&v_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return TWrappedAccess::read_atomic(&v_, item, version, true);
@@ -279,8 +279,8 @@ public:
     read_type snapshot(TransProxy item, const version_type& version) const {
         return *TWrappedAccess::read_atomic(&vp_, item, version, false);
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return *TWrappedAccess::read_wait_atomic(&vp_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return *TWrappedAccess::read_wait_atomic(&vp_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return *TWrappedAccess::read_atomic(&vp_, item, version, true);
@@ -332,8 +332,8 @@ public:
     read_type snapshot(TransProxy, const version_type&) const {
         return *vp_;
     }
-    read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
-        return *TWrappedAccess::read_wait_nonatomic(&vp_, item, version, add_read);
+    read_type wait_snapshot(TransProxy item, const version_type& version, bool remember) const {
+        return *TWrappedAccess::read_wait_nonatomic(&vp_, item, version, remember);
     }
     read_type read(TransProxy item, const version_type& version) const {
         return *TWrappedAccess::read_nonatomic(&vp_, item, version, true);
