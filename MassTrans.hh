@@ -487,11 +487,7 @@ public:
       return cur_version == read_version;
     }
     auto e = item.key<versioned_value*>();
-    auto read_version = item.read_version<Version>();
-    bool valid = validityCheck(item, e);
-    if (!valid)
-      return false;
-    return TransactionTid::check_version(e->version(), read_version);
+    return validityCheck(item, e) && item.check_version(tversion_type(e->version()));
   }
   void install(TransItem& item, Transaction& t) override {
     assert(!is_inter(item));
@@ -646,12 +642,12 @@ protected:
 
   template <typename NODE, typename VERSION>
   void ensureNotFound(NODE n, VERSION v) {
-    // TODO: could be more efficient to use fresh_item here, but that will also require more work for read-then-insert
-    auto item = t_read_only_item(tag_inter(n));
-    if (Opacity)
-      item.add_read_opaque(v);
-    else
-      item.add_read(v);
+      // TODO: could be more efficient to use fresh_item here, but that will also require more work for read-then-insert
+      auto item = t_read_only_item(tag_inter(n));
+      if (Opacity)
+          item.add_read_opaque(v);
+      else
+          item.add_read(v);
   }
 
   template <typename NODE, typename VERSION>

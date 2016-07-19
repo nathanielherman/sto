@@ -34,8 +34,8 @@ public:
 private:
   // not an actual tid but we use that type for the spinlock implementations
   typedef TransactionTid::type list_lock_type;
-  typedef TVersion node_version_type;
-  typedef TVersion list_version_type;
+  typedef typename std::conditional<Opacity, TVersion, TNonopaqueVersion>::type node_version_type;
+  typedef node_version_type list_version_type;
 
 public:
     static constexpr TransactionTid::type invalid_bit = TransactionTid::user_bit;
@@ -504,15 +504,15 @@ private:
     }
 
   bool check(TransItem& item, Transaction&) override {
-    if (item.key<list_node*>() == list_key) {
-      auto lv = listversion_;
-      return lv.check_version(item.read_version<list_version_type>());
+    if (item.key<list_node*>() == list_key)
+        return item.check_version(listversion_);
+    else {
+        auto n = item.key<list_node*>();
+        if (!n->is_valid()) {
+            return has_insert(item);
+        }
+        return item.check_version(n->version());
     }
-    auto n = item.key<list_node*>();
-    if (!n->is_valid()) {
-      return has_insert(item);
-    }
-    return n->version().check_version(item.read_version<node_version_type>());
   }
 
   void install(TransItem& item, Transaction& t) override {

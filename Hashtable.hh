@@ -298,15 +298,14 @@ public:
   bool check(TransItem& item, Transaction&) override {
     if (is_bucket(item)) {
       bucket_entry& buck = map_[bucket_key(item)];
-      return buck.version.check_version(item.read_version<Version_type>());
+      return item.check_version(buck.version);
     }
     auto el = item.key<internal_elem*>();
-    auto read_version = item.read_version<Version_type>();
     // if item has insert_bit then its an insert so no validity check needed.
     // otherwise we check that it is both valid and not locked
     // XXX bool validity_check = has_insert(item) || (el->valid() && (!is_locked(el->version) || item.has_lock(t)));
     // XXX Why isn't it enough to just do the versionCheck?
-    return el->version.check_version(read_version);
+    return item.check_version(el->version);
   }
 
   bool lock(TransItem& item, Transaction& txn) override {
