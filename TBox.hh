@@ -84,7 +84,7 @@ public:
     void print(std::ostream& w, const TransItem& item) const override {
         w << "{TBox<" << typeid(T).name() << "> " << (void*) this;
         if (item.has_read())
-            w << " R" << item.read_value<version_type>();
+            w << " R" << item.read_version<version_type>();
         if (item.has_write())
             w << " =" << item.write_value<T>();
         w << "}";

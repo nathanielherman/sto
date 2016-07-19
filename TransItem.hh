@@ -71,22 +71,22 @@ class TransItem {
     }
 
     template <typename T>
-    T& read_value() {
+    T& read_version() {
         assert(has_read());
         return Packer<T>::unpack(rdata_);
     }
     template <typename T>
-    const T& read_value() const {
+    const T& read_version() const {
         assert(has_read());
         return Packer<T>::unpack(rdata_);
     }
     bool check_version(TVersion v) const {
         assert(has_read());
-        return v.check_version(this->read_value<TVersion>());
+        return v.check_version(this->read_version<TVersion>());
     }
     bool check_version(TNonopaqueVersion v) const {
         assert(has_read());
-        return v.check_version(this->read_value<TNonopaqueVersion>());
+        return v.check_version(this->read_version<TNonopaqueVersion>());
     }
 
     template <typename T>
@@ -222,7 +222,7 @@ class TransProxy {
     }
     template <typename T>
     bool has_read(const T& value) const {
-        return has_read() && this->template read_value<T>() == value;
+        return has_read() && this->template read_version<T>() == value;
     }
     bool has_predicate() const {
         return item().has_predicate();
@@ -255,7 +255,7 @@ class TransProxy {
         return *this;
     }
     template <typename T>
-    inline TransProxy& update_read(T old_rdata, T new_rdata);
+    inline bool update_read(T old_rdata, T new_rdata);
 
     inline TransProxy& set_predicate();
     template <typename T>
@@ -285,12 +285,12 @@ class TransProxy {
     }
 
     template <typename T>
-    T& read_value() {
-        return item().read_value<T>();
+    T& read_version() {
+        return item().read_version<T>();
     }
     template <typename T>
-    const T& read_value() const {
-        return item().read_value<T>();
+    const T& read_version() const {
+        return item().read_version<T>();
     }
 
     template <typename T>

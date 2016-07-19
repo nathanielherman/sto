@@ -86,7 +86,7 @@ public:
     }
 
     bool check(TransItem& item, Transaction&) override {
-        return TransactionTid::check_version(s_.version(), item.template read_value<version_type>());
+        return TransactionTid::check_version(s_.version(), item.read_version<version_type>());
     }
 
     void install(TransItem& item, Transaction& t) override {

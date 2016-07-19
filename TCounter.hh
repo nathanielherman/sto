@@ -123,11 +123,11 @@ public:
     void print(std::ostream& w, const TransItem& item) const override {
         w << "{Counter " << (void*) this << "=" << v_.access() << ".v" << vers_.value();
         if (item.has_read())
-            w << " R" << item.read_value<version_type>();
+            w << " R" << item.read_version<version_type>();
         if (item.has_write() && item.has_flag(delta_bit))
-            w << " Δ" << item.template write_value<T>();
+            w << " Δ" << item.write_value<T>();
         else if (item.has_write())
-            w << " =" << item.template write_value<T>();
+            w << " =" << item.write_value<T>();
         if (item.has_predicate() && !item.has_read()) {
             auto& p = item.predicate_value<pred_type>();
             w << " P[" << p.first << "," << p.second << "]";

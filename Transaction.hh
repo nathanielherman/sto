@@ -899,10 +899,12 @@ inline TransProxy& TransProxy::observe_opacity(TCommutativeVersion version) {
 }
 
 template <typename T>
-inline TransProxy& TransProxy::update_read(T old_rdata, T new_rdata) {
-    if (has_read() && this->read_value<T>() == old_rdata)
+inline bool TransProxy::update_read(T old_rdata, T new_rdata) {
+    if (has_read() && this->read_version<T>() == old_rdata) {
         item().rdata_ = Packer<T>::repack(t()->buf_, item().rdata_, new_rdata);
-    return *this;
+        return true;
+    } else
+        return false;
 }
 
 

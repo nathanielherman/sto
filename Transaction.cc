@@ -90,7 +90,7 @@ void Transaction::hard_check_opacity(TransItem* item, TransactionTid::type t) {
         return;
 
     // ignore if version hasn't changed
-    if (item && item->has_read() && item->read_value<TransactionTid::type>() == t)
+    if (item && item->has_read() && item->read_version<TransactionTid::type>() == t)
         return;
 
     // die on recursive opacity check; this is only possible for predicates
@@ -411,7 +411,7 @@ void Transaction::print() const {
 void TObject::print(std::ostream& w, const TransItem& item) const {
     w << "{" << typeid(*this).name() << " " << (void*) this << "." << item.key<void*>();
     if (item.has_read())
-        w << " R" << item.read_value<void*>();
+        w << " R" << item.read_version<void*>();
     if (item.has_write())
         w << " =" << item.write_value<void*>();
     if (item.has_predicate())

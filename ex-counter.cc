@@ -196,7 +196,7 @@ public:
         if (item.has_flag(zc_bit))
             w << ".ZC";
         if (item.has_read())
-            w << " R" << item.read_value<TVersion>();
+            w << " R" << item.read_version<TVersion>();
         if (item.has_write())
             w << " Δ" << item.write_value<int>();
         if (item.has_flag(zc_set_bit))

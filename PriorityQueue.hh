@@ -163,7 +163,7 @@ public:
         auto top_item = Sto::check_item(this, top_key);
         versioned_value* read_val = NULL;
         if (top_item != NULL && top_item->has_read()) {
-            read_val = (*top_item).template read_value<versioned_value*>();
+            read_val = top_item->template read_version<versioned_value*>();
         }
         // Check if we previously saw the queue as empty.
         auto empty_item = Sto::check_item(this, empty_key);
@@ -292,7 +292,7 @@ public:
             return true;
         }
         else if (item.key<int>() == pop_key) {
-            return TransactionTid::check_version(popversion_, item.template read_value<Version>());
+            return TransactionTid::check_version(popversion_, item.read_version<Version>());
         } else {
             // This is top case
             auto e = item.key<versioned_value*>();

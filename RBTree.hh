@@ -926,7 +926,7 @@ bool RBTree<K, T, GlobalSize>::check(TransItem& item, Transaction&) {
     bool is_treekey = ((uintptr_t)e == (uintptr_t)tree_key_);
     bool is_sizekey = ((uintptr_t)e == (uintptr_t)size_key_);
     bool is_structured = (e & uintptr_t(1)) && !is_treekey;
-    Version read_version = item.read_value<Version>();
+    Version read_version = item.read_version<Version>();
     Version curr_version;
     // set up the correct current version to check: either sizeversion, treeversion, item version, or nodeversion
     if (is_sizekey) {
@@ -1049,7 +1049,7 @@ void RBTree<K, T, GlobalSize>::print(std::ostream& w, const TransItem& item) con
             w << "." << (void*) x;
     }
     if (item.has_read())
-        w << " R" << item.read_value<version_type>();
+        w << " R" << item.read_version<version_type>();
     if (item.has_write()) {
         if (item.key<uintptr_t>() == size_key_)
             w << " Δ" << item.write_value<ssize_t>();

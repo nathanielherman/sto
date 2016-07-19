@@ -483,11 +483,11 @@ public:
     if (is_inter(item)) {
       auto n = untag_inter(item.key<leaf_type*>());
       auto cur_version = n->full_version_value();
-      auto read_version = item.template read_value<typename unlocked_cursor_type::nodeversion_value_type>();
+      auto read_version = item.read_version<typename unlocked_cursor_type::nodeversion_value_type>();
       return cur_version == read_version;
     }
     auto e = item.key<versioned_value*>();
-    auto read_version = item.template read_value<Version>();
+    auto read_version = item.read_version<Version>();
     bool valid = validityCheck(item, e);
     if (!valid)
       return false;
@@ -658,8 +658,8 @@ protected:
   bool updateNodeVersion(NODE *node, VERSION prev_version, VERSION new_version) {
     if (auto node_item = Sto::check_item(this, tag_inter(node))) {
       if (node_item->has_read() &&
-          prev_version == node_item->template read_value<VERSION>()) {
-        node_item->update_read(node_item->template read_value<VERSION>(),
+          prev_version == node_item->template read_version<VERSION>()) {
+        node_item->update_read(node_item->template read_version<VERSION>(),
                                new_version);
         return true;
       }

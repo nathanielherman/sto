@@ -298,10 +298,10 @@ public:
   bool check(TransItem& item, Transaction&) override {
     if (is_bucket(item)) {
       bucket_entry& buck = map_[bucket_key(item)];
-      return buck.version.check_version(item.template read_value<Version_type>());
+      return buck.version.check_version(item.read_version<Version_type>());
     }
     auto el = item.key<internal_elem*>();
-    auto read_version = item.template read_value<Version_type>();
+    auto read_version = item.read_version<Version_type>();
     // if item has insert_bit then its an insert so no validity check needed.
     // otherwise we check that it is both valid and not locked
     // XXX bool validity_check = has_insert(item) || (el->valid() && (!is_locked(el->version) || item.has_lock(t)));
@@ -418,12 +418,12 @@ public:
         if (is_bucket(item)) {
             w << ".b[" << bucket_key(item) << "]";
             if (item.has_read())
-                w << " R" << item.read_value<Version_type>();
+                w << " R" << item.read_version<Version_type>();
         } else {
             auto el = item.key<internal_elem*>();
             w << "[" << mass::print_value(el->key) << "]";
             if (item.has_read())
-                w << " R" << item.read_value<Version_type>();
+                w << " R" << item.read_version<Version_type>();
             if (item.has_write())
                 w << " =" << mass::print_value(item.write_value<write_value_type>());
         }

@@ -419,7 +419,7 @@ public:
 
     bool check(TransItem& item, Transaction&) override {
         if (item.key<List1*>() == this)
-            return TransactionTid::check_version(listversion_, item.template read_value<version_type>());
+            return TransactionTid::check_version(listversion_, item.read_version<version_type>());
         auto n = item.key<list_node*>();
         return n->is_valid() || has_insert(item);
     }

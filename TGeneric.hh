@@ -50,7 +50,7 @@ public:
     void print(std::ostream& w, const TransItem& item) const override {
         w << "{TGeneric @" << item.key<void*>();
         if (item.has_read())
-            w << " R" << item.read_value<version_type>();
+            w << " R" << item.read_version<version_type>();
         if (item.has_write())
             w << " =" << item.write_value<void*>() << "/" << item.shifted_user_flags();
         w << "}";

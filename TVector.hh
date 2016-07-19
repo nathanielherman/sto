@@ -152,7 +152,7 @@ public:
         } else {
             item.add_flags(indexed_bit);
             get_type result = data_[i].v.read(item, data_[i].vers);
-            if (item.read_value<version_type>().value() & dead_bit)
+            if (item.read_version<version_type>().value() & dead_bit)
                 goto out_of_range;
             return result;
         }
@@ -252,7 +252,7 @@ public:
         if (key == size_key) {
             w << ".size @" << size_info(item).first;
             if (item.has_read())
-                w << " R" << item.read_value<version_type>();
+                w << " R" << item.read_version<version_type>();
             else if (item.has_predicate())
                 w << ' ' << item.predicate_value<pred_type>();
             if (item.has_write())
@@ -263,7 +263,7 @@ public:
                 w << "?";
             w << "]";
             if (item.has_read())
-                w << " R" << item.read_value<version_type>();
+                w << " R" << item.read_version<version_type>();
             if (item.has_write() && item.has_flag(pop_bit))
                 w << " =X";
             else if (item.has_write())
@@ -339,7 +339,7 @@ private:
         if (i >= capacity_)
             return false;
         item.observe(data_[i].vers).add_flags(onlyexists_bit);
-        return !(item.read_value<version_type>().value() & dead_bit);
+        return !(item.read_version<version_type>().value() & dead_bit);
     }
 
     friend class iterator;

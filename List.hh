@@ -506,13 +506,13 @@ private:
   bool check(TransItem& item, Transaction&) override {
     if (item.key<list_node*>() == list_key) {
       auto lv = listversion_;
-      return lv.check_version(item.template read_value<list_version_type>());
+      return lv.check_version(item.read_version<list_version_type>());
     }
     auto n = item.key<list_node*>();
     if (!n->is_valid()) {
       return has_insert(item);
     }
-    return n->version().check_version(item.template read_value<node_version_type>());
+    return n->version().check_version(item.read_version<node_version_type>());
   }
 
   void install(TransItem& item, Transaction& t) override {
