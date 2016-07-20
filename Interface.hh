@@ -10,6 +10,8 @@ class Transaction;
 class TransItem;
 class TransProxy;
 
+enum class TOpacity { nonopaque = 0, opaque = 1};
+
 class TThread {
     static __thread int the_id;
 public:

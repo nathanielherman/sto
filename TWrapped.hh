@@ -2,7 +2,8 @@
 #include "Transaction.hh"
 #include <utility>
 
-template <typename T, bool Opaque = true,
+template <typename T,
+          TOpacity Opaque = TOpacity::opaque,
           bool Trivial = mass::is_trivially_copyable<T>::value,
           bool Small = sizeof(T) <= sizeof(uintptr_t) && alignof(T) == sizeof(T)
           > class TWrapped;
@@ -84,7 +85,7 @@ static T read_wait_nonatomic(const T* v, TransProxy item, const V& version, bool
 }
 
 template <typename T>
-class TWrapped<T, true /* opaque */, true /* trivial */, true /* small */> {
+class TWrapped<T, TOpacity::opaque, true /* trivial */, true /* small */> {
 public:
     typedef T read_type;
     typedef TVersion version_type;
@@ -123,7 +124,7 @@ protected:
 };
 
 template <typename T>
-class TWrapped<T, true /* opaque */, true /* trivial */, false /* !small */> {
+class TWrapped<T, TOpacity::opaque, true /* trivial */, false /* !small */> {
 public:
     typedef T read_type;
     typedef TVersion version_type;
@@ -159,7 +160,7 @@ protected:
 };
 
 template <typename T>
-class TWrapped<T, false /* !opaque */, true /* trivial */, true /* small */> {
+class TWrapped<T, TOpacity::nonopaque, true /* trivial */, true /* small */> {
 public:
     typedef T read_type;
     typedef TNonopaqueVersion version_type;
@@ -204,7 +205,7 @@ private:
 };
 
 template <typename T>
-class TWrapped<T, false /* !opaque */, true /* trivial */, false /* !small */> {
+class TWrapped<T, TOpacity::nonopaque, true /* trivial */, false /* !small */> {
 public:
     typedef T read_type;
     typedef TNonopaqueVersion version_type;
@@ -249,7 +250,7 @@ private:
 };
 
 template <typename T, bool Small>
-class TWrapped<T, true /* opaque */, false /* !trivial */, Small> {
+class TWrapped<T, TOpacity::opaque, false /* !trivial */, Small> {
 public:
     typedef const T& read_type;
     typedef TVersion version_type;
@@ -302,7 +303,7 @@ private:
 };
 
 template <typename T, bool Small>
-class TWrapped<T, false /* !opaque */, false /* !trivial */, Small> {
+class TWrapped<T, TOpacity::nonopaque, false /* !trivial */, Small> {
 public:
     typedef const T& read_type;
     typedef TNonopaqueVersion version_type;
@@ -356,4 +357,4 @@ private:
 
 
 template <typename T> using TOpaqueWrapped = TWrapped<T>;
-template <typename T> using TNonopaqueWrapped = TWrapped<T, false>;
+template <typename T> using TNonopaqueWrapped = TWrapped<T, TOpacity::nonopaque>;
