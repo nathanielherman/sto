@@ -210,15 +210,6 @@ public:
     typedef T read_type;
     typedef TNonopaqueVersion version_type;
 
-    TWrapped()
-        : v_() {
-    }
-    TWrapped(const T& v)
-        : v_(v) {
-    }
-    TWrapped(T&& v)
-        : v_(std::move(v)) {
-    }
     template <typename... Args> TWrapped(Args&&... args)
         : v_(std::forward<Args>(args)...) {
     }
@@ -255,15 +246,6 @@ public:
     typedef const T& read_type;
     typedef TVersion version_type;
 
-    TWrapped()
-        : vp_(new T) {
-    }
-    TWrapped(const T& v)
-        : vp_(new T(v)) {
-    }
-    TWrapped(T&& v)
-        : vp_(new T(std::move(v))) {
-    }
     template <typename... Args> TWrapped(Args&&... args)
         : vp_(new T(std::forward<Args>(args)...)) {
     }
@@ -308,15 +290,6 @@ public:
     typedef const T& read_type;
     typedef TNonopaqueVersion version_type;
 
-    TWrapped()
-        : vp_(new T) {
-    }
-    TWrapped(const T& v)
-        : vp_(new T(v)) {
-    }
-    TWrapped(T&& v)
-        : vp_(new T(std::move(v))) {
-    }
     template <typename... Args> TWrapped(Args&&... args)
         : vp_(new T(std::forward<Args>(args)...)) {
     }

@@ -1,5 +1,6 @@
 #undef NDEBUG
 #include "Transaction.hh"
+#include "TWrapped.hh"
 #include "clp.h"
 #include <stdlib.h>
 #include <inttypes.h>
@@ -36,6 +37,28 @@ void* tracker_run(void* argument) {
 }
 
 
+class movable {
+public:
+    movable()
+        : origin_(0) {
+    }
+    movable(movable&& x)
+        : origin_(1) {
+        x.origin_ = -1;
+    }
+    movable(const movable&)
+        : origin_(2) {
+    }
+
+    int origin() const {
+        return origin_;
+    }
+
+private:
+    int origin_;
+};
+
+
 static const Clp_Option options[] = {
     { "delay", 'd', 'd', Clp_ValDouble, Clp_Negate },
     { "nthreads", 'j', 'j', Clp_ValInt, 0 },
@@ -46,6 +69,29 @@ int main(int argc, char* argv[]) {
     unsigned nthreads = 4;
     TRcuSet::epoch_type nepochs = 10;
     delay = 0.000001;
+
+    // check perfect forwarding works as we expect
+    {
+        movable m1;
+        assert(m1.origin() == 0);
+        movable m2(m1);
+        assert(m1.origin() == 0);
+        assert(m2.origin() == 2);
+        movable m3(std::move(m1));
+        assert(m1.origin() == -1);
+        assert(m2.origin() == 2);
+        assert(m3.origin() == 1);
+
+        TWrapped<movable> w1;
+        assert(w1.access().origin() == 0);
+        movable m4;
+        TWrapped<movable> w2(m4);
+        assert(m4.origin() == 0);
+        assert(w2.access().origin() == 2);
+        TWrapped<movable> w3(std::move(m4));
+        assert(m4.origin() == -1);
+        assert(w3.access().origin() == 1);
+    }
 
     Clp_Parser *clp = Clp_NewParser(argc, argv, arraysize(options), options);
     int opt;
