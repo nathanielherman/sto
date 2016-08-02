@@ -3,12 +3,11 @@
 
 template <typename T,
           TOpacity Opaque = TOpacity::opaque,
-          bool Trivial = mass::is_trivially_copyable<T>::value,
-          bool Small = sizeof(T) <= sizeof(uintptr_t) && alignof(T) == sizeof(T)
+          bool Trivial = mass::is_trivially_copyable<T>::value
           > class TBoxed;
 
-template <typename T, TOpacity Opaque, bool Small>
-class TBoxed<T, Opaque, true /* trivial */, Small> {
+template <typename T, TOpacity Opaque>
+class TBoxed<T, Opaque, true /* trivial */> {
 public:
     typedef typename TWrapped<T, Opaque>::version_type version_type;
     typedef typename TWrapped<T, Opaque>::read_type read_type;
@@ -47,8 +46,8 @@ private:
     TWrapped<T, Opaque> value_;
 };
 
-template <typename T, TOpacity Opaque, bool Small>
-class TBoxed<T, Opaque, false /* !trivial */, Small> {
+template <typename T, TOpacity Opaque>
+class TBoxed<T, Opaque, false /* !trivial */> {
 public:
     typedef typename TWrapped<T, Opaque>::version_type version_type;
     typedef const T& read_type;

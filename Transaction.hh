@@ -495,12 +495,12 @@ public:
     // These function will eventually help us track the commit TID when we
     // have no opacity, or for GV7 opacity.
     bool try_lock(TransItem& item, TVersion& vers) {
-        return try_lock(item, const_cast<TransactionTid::type&>(vers.value()));
+        return try_lock_value(item, const_cast<TransactionTid::type&>(vers.value()));
     }
     bool try_lock(TransItem& item, TNonopaqueVersion& vers) {
-        return try_lock(item, const_cast<TransactionTid::type&>(vers.value()));
+        return try_lock_value(item, const_cast<TransactionTid::type&>(vers.value()));
     }
-    bool try_lock(TransItem& item, TransactionTid::type& vers) {
+    bool try_lock_value(TransItem& item, TransactionTid::type& vers) {
 #if STO_SORT_WRITESET
         (void) item;
         TransactionTid::lock(vers, threadid_);

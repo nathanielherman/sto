@@ -477,7 +477,7 @@ public:
 
     bool lock(TransItem& item, Transaction& txn) override {
         versioned_value* vv = item.key<versioned_value*>();
-        return txn.try_lock(item, vv->version());
+        return txn.try_lock_value(item, vv->version());
     }
   bool check(TransItem& item, Transaction&) override {
     if (is_inter(item)) {

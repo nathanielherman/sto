@@ -82,7 +82,7 @@ public:
     }
 
     bool lock(TransItem& item, Transaction& txn) override {
-        return txn.try_lock(item, s_.version());
+        return txn.try_lock_value(item, s_.version());
     }
 
     bool check(TransItem& item, Transaction&) override {

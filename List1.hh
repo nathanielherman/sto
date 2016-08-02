@@ -16,7 +16,7 @@ public:
     }
 
 private:
-    typedef TransactionTid::type version_type;
+    typedef typename std::conditional<Opacity, TVersion, TNonopaqueVersion>::type version_type;
 
 public:
     static constexpr uint8_t invalid_bit = 1<<0;
@@ -106,11 +106,11 @@ public:
     list_node* _insert(const T& elem, bool *inserted = NULL) {
         if (inserted)
             *inserted = true;
-        lock(listversion_);
+        listversion_.lock();
         if (!Sorted && !Duplicates) {
             list_node *new_head = new list_node(elem, head_, Txnal);
             head_ = new_head;
-            unlock(listversion_);
+            listversion_.unlock();
             return new_head;
         }
         
@@ -119,7 +119,7 @@ public:
         while (cur != NULL) {
             int c = comp_(cur->val, elem);
             if (!Duplicates && c == 0) {
-                unlock(listversion_);
+                listversion_.unlock();
                 if (inserted)
                     *inserted = false;
                 return cur;
@@ -137,7 +137,7 @@ public:
         }
         if (!Txnal)
             listsize_++;
-        unlock(listversion_);
+        listversion_.unlock();
         return ret;
     }
     
@@ -245,7 +245,7 @@ public:
     template <bool Txnal, typename FoundFunc>
     bool _remove(FoundFunc found_f, bool locked = false) {
         if (!locked)
-            lock(listversion_);
+            listversion_.lock();
         list_node *prev = NULL;
         list_node *cur = head_;
         while (cur != NULL) {
@@ -264,14 +264,14 @@ public:
                 if (!Txnal)
                     listsize_--;
                 if (!locked)
-                    unlock(listversion_);
+                    listversion_.unlock();
                 return true;
             }
             prev = cur;
             cur = cur->next;
         }
         if (!locked)
-            unlock(listversion_);
+            listversion_.unlock();
         return false;
     }
     
@@ -395,19 +395,7 @@ public:
         t_item(this).add_read(readv);
         acquire_fence();
     }
-    
-    
-    void lock(version_type& v) {
-        TransactionTid::lock(v);
-    }
-    
-    void unlock(version_type& v) {
-        TransactionTid::unlock(v);
-    }
-    
-    bool is_locked(version_type& v) {
-        return TransactionTid::is_locked(v);
-    }
+
 
     bool lock(TransItem& item, Transaction& txn) override {
         // this lock is useless given that we also lock the listversion_
@@ -419,7 +407,7 @@ public:
 
     bool check(TransItem& item, Transaction&) override {
         if (item.key<List1*>() == this)
-            return TransactionTid::check_version(listversion_, item.read_version<version_type>());
+            return item.check_version(listversion_);
         auto n = item.key<list_node*>();
         return n->is_valid() || has_insert(item);
     }
@@ -431,30 +419,20 @@ public:
         if (has_delete(item)) {
             remove<true>(n, true);
             listsize_--;
-            // not super ideal that we have to change version
-            // but we need to invalidate transSize() calls
-            if (Opacity) {
-                TransactionTid::set_version(listversion_, t.commit_tid());
-            } else {
-                TransactionTid::inc_nonopaque_version(listversion_);
-            }
+            t.set_version(listversion_);
         } else if (has_doupdate(item)) {
             // XXX BUG
             n->val = item.template write_value<T>();
         } else {
             n->mark_valid();
             listsize_++;
-            if (Opacity) {
-                TransactionTid::set_version(listversion_, t.commit_tid());
-            } else {
-                TransactionTid::inc_nonopaque_version(listversion_);
-            }
+            t.set_version(listversion_);
         }
     }
     
     void unlock(TransItem& item) override {
         if (item.key<List1*>() == this)
-            unlock(listversion_);
+            listversion_.unlock();
     }
 
     void cleanup(TransItem& item, bool committed) override {

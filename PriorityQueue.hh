@@ -8,16 +8,16 @@
 
 template <typename T, bool Opacity = false>
 class PriorityQueue: public Shared {
-    typedef TransactionTid::type Version;
+    typedef typename std::conditional<Opacity, TVersion, TNonopaqueVersion>::type Version;
+    typedef typename Version::type version_type;
     typedef versioned_value_struct<T> versioned_value;
     
     static constexpr TransItem::flags_type insert_tag = TransItem::user0_bit;
     static constexpr TransItem::flags_type delete_tag = TransItem::user0_bit<<1;
     static constexpr TransItem::flags_type dirty_tag = TransItem::user0_bit<<2;
 
-    static constexpr Version insert_bit = TransactionTid::user_bit; // XXX get rid of this
-    static constexpr Version delete_bit = TransactionTid::user_bit<<1; // XXX get rid of this
-    static constexpr Version dirty_bit = TransactionTid::user_bit<<2; // XXX get rid of this
+    static constexpr version_type insert_bit = TransactionTid::user_bit; // XXX get rid of this
+    static constexpr version_type delete_bit = TransactionTid::user_bit<<1; // XXX get rid of this
 
     static constexpr int pop_key = -2;
     static constexpr int empty_key = -3;
@@ -70,7 +70,7 @@ public:
         versioned_value* res = heap_[0];
 
         if (expVal != NULL && res != expVal) {
-            unlock(&poplock_);
+            poplock_.unlock();
             Sto::abort();
             return NULL;
         }
@@ -110,24 +110,24 @@ public:
     }
     
     versioned_value* getMax() {
-        assert(TransactionTid::is_locked_here(poplock_));
+        assert(poplock_.is_locked_here());
         if (size_ == 0) {
             return NULL;
         }
         while(1) {
             versioned_value* val = heap_[0];
             auto item = Sto::item(this, val);
-            if (is_inserted(val->version())) {
+            if (is_inserted(val)) {
                 if (has_insert(item)) {
                     // push then pop
                     return val;
                 } else {
                     // Some other transaction is inserting a node with high priority
-                    unlock(&poplock_);
+                    poplock_.unlock();
                     Sto::abort();
                     return NULL;
                 }
-            } else if (is_deleted(val->version())) {
+            } else if (is_deleted(val)) {
                 removeMax(val);
                 if (size_ == 0) return NULL;
             } else {
@@ -137,24 +137,24 @@ public:
     }
     
     void push_nontrans(T v) {
-        lock(&poplock_);
+        poplock_.lock();
         versioned_value* val = versioned_value::make(v, TransactionTid::increment_value + insert_bit);
         add(val);
-        unlock(&poplock_);
+        poplock_.unlock();
     }
     
     void push(T v) {
-        lock(&poplock_); // TODO: locking this is not required, but performance seems to be better with this
+        poplock_.lock(); // TODO: locking this is not required, but performance seems to be better with this
                             // Can also try readers-writers lock
         if (dirtytid_ != -1 && dirtytid_ != TThread::id() && v > dirtyval_) {
-            unlock(&poplock_);
+            poplock_.unlock();
             Sto::abort();
             return;
         }
         versioned_value* val = versioned_value::make(v, TransactionTid::increment_value + insert_bit);
         add(val);
         Sto::item(this, val).add_write(v).add_flags(insert_tag);
-        unlock(&poplock_);
+        poplock_.unlock();
         
     }
     
@@ -175,14 +175,14 @@ public:
             }
             else Sto::item(this, empty_key).add_read(0);
             // XXX opacity
-            Sto::item(this, pop_key).add_read(TransactionTid::unlocked(popversion_));
+            Sto::item(this, pop_key).add_read(popversion_.unlocked());
             return -1;
         }
         
-        lock(&poplock_);
+        poplock_.lock();
         if (dirtytid_ != -1 && dirtytid_ != TThread::id()) {
             // queue is in dirty state
-            unlock(&poplock_);
+            poplock_.unlock();
             Sto::abort();
             return -1;
         }
@@ -198,15 +198,15 @@ public:
         }
         auto item = Sto::item(this, val);
         if (shouldBeInserted && !has_insert(item)) {
-                unlock(&poplock_);
+                poplock_.unlock();
                 Sto::abort();
                 return -1;
         }
         
         if (val == NULL) {
             Sto::item(this, empty_key).add_read(0);
-            Sto::item(this, pop_key).add_read(TransactionTid::unlocked(popversion_));
-            unlock(&poplock_);
+            Sto::item(this, pop_key).add_read(popversion_.unlocked());
+            poplock_.unlock();
             return -1;
         }
         if (dirtytid_ == -1 || val->read_value() < dirtyval_) {
@@ -216,7 +216,7 @@ public:
         dirtytid_ = TThread::id();
         
         removeMax(val);
-        unlock(&poplock_);
+        poplock_.unlock();
         
         if (has_insert(item)) {
             item.add_flags(delete_tag);
@@ -236,21 +236,21 @@ public:
             return -1;
         }
         
-        Sto::item(this, pop_key).add_read(TransactionTid::unlocked(popversion_));
+        Sto::item(this, pop_key).add_read(popversion_.unlocked());
         acquire_fence();
         if (size_ == 0) {
             Sto::item(this, empty_key).add_read(0);
             return -1;
         }
         
-        lock(&poplock_);
+        poplock_.lock();
         if (dirtytid_ != -1 && dirtytid_ != TThread::id()) {
             // queue is in dirty state
-            unlock(&poplock_);
+            poplock_.unlock();
             Sto::abort();
         }
         versioned_value* val = getMax();
-        unlock(&poplock_);
+        poplock_.unlock();
         if (val == NULL) {
             Sto::item(this, empty_key).add_read(0);
             return -1;
@@ -265,13 +265,6 @@ public:
         return size_; // TODO: this is not transactional yet
     }
     
-    void lock(versioned_value *e) {
-        lock(&e->version());
-    }
-    void unlock(versioned_value *e) {
-        unlock(&e->version());
-    }
-    
     bool lock(TransItem& item, Transaction& txn) override {
         return item.key<int>() != pop_key
             || txn.try_lock(item, popversion_);
@@ -283,7 +276,7 @@ public:
             // check that no other transaction  pushed items onto the queue
             for (int i = 0; i < size_; i++) {
                 versioned_value* val = heap_[i];
-                if (!is_inserted(val->version())
+                if (!is_inserted(val)
                     || TransactionTid::is_locked_elsewhere(val->version()))
                     return false;
             }
@@ -292,7 +285,7 @@ public:
             return true;
         }
         else if (item.key<int>() == pop_key) {
-            return TransactionTid::check_version(popversion_, item.read_version<Version>());
+            return item.check_version(popversion_);
         } else {
             // This is top case
             auto e = item.key<versioned_value*>();
@@ -324,22 +317,18 @@ public:
     
     void install(TransItem& item, Transaction& t) override {
         if (item.key<int>() == pop_key){
-            if (Opacity) {
-                TransactionTid::set_version(popversion_, t.commit_tid());
-            } else {
-                TransactionTid::inc_nonopaque_version(popversion_);
-            }
+            t.set_version(popversion_);
         } else {
             auto e = item.key<versioned_value*>();
             if (has_insert(item)) {
-                erase_inserted(&e->version());
+                erase_inserted(e);
             }
         }
     }
-    
+
     void unlock(TransItem& item) override {
         if (item.key<int>() == pop_key)
-            unlock(&popversion_);
+            popversion_.unlock();
     }
 
     void cleanup(TransItem& item, bool committed) override {
@@ -353,16 +342,16 @@ public:
             }
             if (has_insert(item)) {
                 auto e = item.key<versioned_value*>();
-                mark_deleted(&e->version());
+                mark_deleted(e);
                 fence();
-                erase_inserted(&e->version());
+                erase_inserted(e);
             } else if (has_delete(item)) {
                 auto e = item.key<versioned_value*>();
                 auto v = e->read_value();
                 versioned_value* val = versioned_value::make(v, TransactionTid::increment_value);
-                lock(&poplock_);
+                poplock_.lock();
                 add(val);
-                unlock(&poplock_);
+                poplock_.unlock();
                 fence();
                 dirtycount_--;
                 if (dirtycount_ == 0) {
@@ -376,21 +365,13 @@ public:
     // Used for debugging
     void print() {
         for (int i =0; i < size_; i++) {
-            std::cout << heap_[i]->read_value() << "[" << (!is_inserted(heap_[i]->version()) && !is_deleted(heap_[i]->version())) << "] ";
+            std::cout << heap_[i]->read_value() << "[" << (!is_inserted(heap_[i]) && !is_deleted(heap_[i])) << "] ";
         }
         std::cout << std::endl;
     }
     
     
 private:
-    static void lock(Version *v) {
-        TransactionTid::lock(*v);
-    }
-    
-    static void unlock(Version *v) {
-        TransactionTid::unlock(*v);
-    }
-    
     static bool has_insert(const TransItem& item) {
         return item.flags() & insert_tag;
     }
@@ -402,42 +383,24 @@ private:
         return item.flags() & dirty_tag;
     }
     
-    static bool is_inserted(Version v) {
-        return v & insert_bit;
+    static bool is_inserted(versioned_value* vv) {
+        return vv->version() & insert_bit;
     }
     
-    static void erase_inserted(Version* v) {
-        *v = *v & (~insert_bit);
+    static void erase_inserted(versioned_value* vv) {
+        vv->version() &= ~insert_bit;
     }
     
-    static void mark_inserted(Version* v) {
-        *v = *v | insert_bit;
+    static void mark_inserted(versioned_value* vv) {
+        vv->version() |= insert_bit;
     }
-    
-    static bool is_dirty(Version v) {
-        return v & dirty_bit;
+
+    static bool is_deleted(versioned_value* vv) {
+        return vv->version() & delete_bit;
     }
-    
-    static void erase_dirty(Version* v) {
-        assert(is_dirty(*v));
-        *v = *v & (~dirty_bit);
-    }
-    
-    static void mark_dirty(Version* v) {
-        assert(!is_dirty(*v));
-        *v = *v | dirty_bit;
-    }
-            
-    static bool is_deleted(Version v) {
-        return v & delete_bit;
-    }
-            
-    static void erase_deleted(Version* v) {
-        *v = *v & (~delete_bit);
-    }
-            
-    static void mark_deleted(Version* v) {
-        *v = *v | delete_bit;
+
+    static void mark_deleted(versioned_value* vv) {
+        vv->version() |= delete_bit;
     }
     
     static int findLevel(int i) {
@@ -456,7 +419,7 @@ private:
         heap_[j] = tmp;
     }
     
-    std::vector<versioned_value *> heap_;
+    std::vector<versioned_value*> heap_;
     Version poplock_;
     Version popversion_;
     int size_;
