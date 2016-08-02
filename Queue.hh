@@ -227,7 +227,7 @@ private:
             // only increment head if item popped from actual q
             if (!is_rw(item))
                 head_ = (head_+1) % BUF_SIZE;
-            headversion_.set_version(txn.commit_tid());
+            txn.set_version(headversion_);
         }
         // install pushes
         else if (item.key<int>() == -1) {
@@ -249,7 +249,7 @@ private:
                 tail_ = (tail_+1) % BUF_SIZE;
             }
 
-            tailversion_.set_version(txn.commit_tid());
+            txn.set_version(tailversion_);
         }
     }
     

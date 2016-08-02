@@ -314,7 +314,7 @@ public:
     return txn.try_lock(item, el->version);
   }
 
-  void install(TransItem& item, Transaction& t) override {
+  void install(TransItem& item, Transaction& txn) override {
     assert(!is_bucket(item));
     auto el = item.key<internal_elem*>();
     assert(is_locked(el));
@@ -322,7 +322,7 @@ public:
     if (item.flags() & delete_bit) {
       // XXX: think we need an extra bit in here for opacity, or we should remove this now 
       // rather than in cleanup
-      el->version.set_version_locked(el->version.value() | invalid_bit);
+      txn.set_version(el->version, invalid_bit);
       // we wait to remove the node til cleanup() (unclear that this is actually necessary)
       return;
     }
@@ -336,9 +336,10 @@ public:
       //Transaction::rcu_delete(new_v);
     //}
 
-    el->version.set_version(t.commit_tid()); // automatically sets valid to true
+    txn.set_version(el->version);
     // nate: this has no visible perf change on vacation (maybe slightly slower).
 #if 1
+    // XXX this is incorrect
     // convert nonopaque bucket version to a commit tid
     if (Opacity && has_insert(item)) {
       bucket_entry& buck = buck_entry(el->key);
