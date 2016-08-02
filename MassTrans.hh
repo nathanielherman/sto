@@ -514,14 +514,9 @@ public:
         e->set_value(v);
     }
     if (Opacity)
-      TransactionTid::set_version(e->version(), t.commit_tid());
-    else if (has_insert(item)) {
-      Version v = e->version() & ~invalid_bit;
-      fence();
-      e->version() = v;
-    } else
-      TransactionTid::inc_nonopaque_version(e->version());
-    
+        t.set_version(reinterpret_cast<TVersion&>(e->version()));
+    else
+        t.set_version(reinterpret_cast<TNonopaqueVersion&>(e->version()));
   }
 
   void unlock(TransItem& item) override {
