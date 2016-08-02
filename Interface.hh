@@ -257,6 +257,9 @@ public:
         return TransactionTid::is_locked_elsewhere(v_, here);
     }
     inline bool is_locked_elsewhere(const Transaction& txn) const;
+    bool is_nonopaque() const {
+        return v_ & TransactionTid::nonopaque_bit;
+    }
 
     bool bool_cmpxchg(TVersion expected, TVersion desired) {
         return ::bool_cmpxchg(&v_, expected.v_, desired.v_);

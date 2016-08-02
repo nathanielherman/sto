@@ -338,17 +338,13 @@ public:
 
     txn.set_version(el->version);
     // nate: this has no visible perf change on vacation (maybe slightly slower).
-#if 1
-    // XXX this is incorrect
+#if 0
+    // XXX this is incorrect: we can only upgrade the nonopaque version
+    // assigned earlier!!!!!
     // convert nonopaque bucket version to a commit tid
     if (Opacity && has_insert(item)) {
       bucket_entry& buck = buck_entry(el->key);
-      lock(buck.version);
-      // only update if it's still nonopaque. Otherwise someone with a higher tid
-      // could've already updated it.
-      if (buck.version.value() & TransactionTid::nonopaque_bit)
-	buck.version.set_version(txn.commit_tid());
-      unlock(buck.version);
+      txn.upgrade_nonopaque_version(buck.version);
     }
 #endif
   }

@@ -597,6 +597,13 @@ public:
         vers = v | flags;
         item.clear_needs_unlock();
     }
+    void upgrade_nonopaque_version(TVersion& vers) {
+        TVersion vers_copy = vers;
+        if (commit_tid_ && vers_copy.is_nonopaque())
+            vers.bool_cmpxchg(vers_copy, commit_tid_);
+    }
+    void upgrade_nonopaque_version(TNonopaqueVersion&) {
+    }
 
     static const char* state_name(int state);
     void print() const;

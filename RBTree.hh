@@ -1004,7 +1004,7 @@ void RBTree<K, T, GlobalSize>::install(TransItem& item, Transaction& t) {
             wrapper_tree_.erase(*e);
             unlock_write(&treelock_);
 
-            e->version().set_version(t.commit_tid());
+            t.set_version(e->version());
             e->install_nv(t);
             Transaction::rcu_free(e);
         } else {
