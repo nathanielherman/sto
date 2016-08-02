@@ -347,7 +347,7 @@ public:
       // only update if it's still nonopaque. Otherwise someone with a higher tid
       // could've already updated it.
       if (buck.version.value() & TransactionTid::nonopaque_bit)
-	buck.version.set_version(t.commit_tid());
+	buck.version.set_version(txn.commit_tid());
       unlock(buck.version);
     }
 #endif

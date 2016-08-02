@@ -526,24 +526,16 @@ private:
       listsize_--;
       // not super ideal that we have to change version
       // but we need to invalidate transSize() calls
-      if (Opacity) {
-        listversion_.set_version(t.commit_tid());
-      } else {
-        listversion_.inc_nonopaque_version();
-      }
+      t.set_version(listversion_);
     } else if (has_doupdate(item)) {
-      n->set_version(t.commit_tid());
+      t.set_version(n->vers);
       n->val = item.template write_value<T>();
     } else {
       // insert
       // clears the invalid bit too
-      n->set_version_unlock(t.commit_tid());
+      t.set_version_unlock(n->vers, item);
       listsize_++;
-      if (Opacity) {
-        listversion_.set_version(t.commit_tid());
-      } else {
-        listversion_.inc_nonopaque_version();
-      }
+      t.set_version(listversion_);
     }
   }
 
