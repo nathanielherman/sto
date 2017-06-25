@@ -201,6 +201,16 @@ void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
         }
     }
 
+#if STO_2PL
+	// release read locks
+    for (unsigned tidx = 0; tidx != tset_size_; ++tidx) {
+        it = (tidx % tset_chunk ? it + 1 : tset_[tidx / tset_chunk]);
+        if (it->has_read()) {
+            it->owner()->unlock(*it);
+        }
+    }
+#endif
+
 after_unlock:
     // TODO: this will probably mess up with nested transactions
     threadinfo_t& thr = tinfo[TThread::id()];
@@ -257,6 +267,7 @@ bool Transaction::try_commit() {
         if (it->has_write()) {
             writeset[nwriteset++] = tidx;
 #if !STO_SORT_WRITESET
+#if !STO_2PL
             if (nwriteset == 1) {
                 first_write_ = writeset[0];
                 state_ = s_committing_locked;
@@ -266,6 +277,7 @@ bool Transaction::try_commit() {
                 goto abort;
             }
             it->__or_flags(TransItem::lock_bit);
+#endif
 #endif
         }
         if (it->has_read())
@@ -312,6 +324,7 @@ bool Transaction::try_commit() {
 #endif
 
     //phase2
+#if !STO_2PL
     for (unsigned tidx = 0; tidx != tset_size_; ++tidx) {
         it = (tidx % tset_chunk ? it + 1 : tset_[tidx / tset_chunk]);
         if (it->has_read()) {
@@ -323,6 +336,7 @@ bool Transaction::try_commit() {
             }
         }
     }
+#endif
 
     // fence();
 

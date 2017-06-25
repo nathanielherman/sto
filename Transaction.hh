@@ -651,6 +651,33 @@ public:
 #endif
     }
 
+    // Bounded spinning reader/writer locks
+    // To be used with 2PL
+    bool try_lock_read(TransItem& item, TNonopaqueVersion& vers) {
+        unsigned n = 0;
+        while (1) {
+            if (TransactionTid::try_lock_read(const_cast<TransactionTid::type&>(vers.value())))
+                return true;
+            ++n;
+            if (item.has_read() || n == (1 << STO_SPIN_BOUND_WRITE))
+                return false;
+            relax_fence();
+        }
+    }
+
+    bool try_lock_write(TransItem& item, TNonopaqueVersion& vers) {
+        unsigned n = 0;
+        while (1) {
+            if (TransactionTid::try_lock_write(const_cast<TransactionTid::type&>(vers.value())))
+                return true;
+            ++n;
+            // No upgrades
+            if (item.has_read() || n == (1 << STO_SPIN_BOUND_WRITE))
+                return false;
+            relax_fence();
+        }
+    }
+
     void check_opacity(TransItem& item, TransactionTid::type v) {
 #if STO_TSC_PROFILE
         TimeKeeper<tc_opacity> tk;
@@ -987,12 +1014,14 @@ inline TransProxy& TransProxy::observe(TVersion version, bool add_read) {
 
 inline TransProxy& TransProxy::observe(TNonopaqueVersion version, bool add_read) {
     assert(!has_stash());
-    if (version.is_locked_elsewhere(t()->threadid_))
-        t()->abort_because(item(), "locked", version.value());
+    //if (version.is_locked_elsewhere(t()->threadid_))
+    //    t()->abort_because(item(), "locked", version.value());
     if (add_read && !has_read()) {
         item().__or_flags(TransItem::read_bit);
-        item().rdata_ = Packer<TNonopaqueVersion>::pack(t()->buf_, std::move(version));
+        //item().rdata_ = Packer<TNonopaqueVersion>::pack(t()->buf_, std::move(version));
         t()->any_nonopaque_ = true;
+        if (!t()->try_lock_read(item(), version))
+            t()->abort_because(item(), "read_lock_fail", version.value());
     }
     return *this;
 }
@@ -1072,22 +1101,24 @@ inline TransProxy& TransProxy::add_write() {
 }
 
 template <typename T>
-inline TransProxy& TransProxy::add_write(const T& wdata) {
-    return add_write<T, const T&>(wdata);
+inline TransProxy& TransProxy::add_write(const T& wdata, TNonopaqueVersion& vers) {
+    return add_write<T, const T&>(wdata, vers);
 }
 
 template <typename T>
-inline TransProxy& TransProxy::add_write(T&& wdata) {
+inline TransProxy& TransProxy::add_write(T&& wdata, TNonopaqueVersion& vers) {
     typedef typename std::decay<T>::type V;
-    return add_write<V, V&&>(std::move(wdata));
+    return add_write<V, V&&>(std::move(wdata), vers);
 }
 
 template <typename T, typename... Args>
-inline TransProxy& TransProxy::add_write(Args&&... args) {
+inline TransProxy& TransProxy::add_write(Args&&... args, TNonopaqueVersion& vers) {
     if (!has_write()) {
         item().__or_flags(TransItem::write_bit);
         item().wdata_ = Packer<T>::pack(t()->buf_, std::forward<Args>(args)...);
         t()->any_writes_ = true;
+        if (!t()->try_lock_write(item(), vers))
+            t()->abort_because(item(), "write_lock_failed", vers.value());
     } else
         // TODO: this assumes that a given writer data always has the same type.
         // this is certainly true now but we probably shouldn't assume this in general

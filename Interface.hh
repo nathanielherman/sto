@@ -39,6 +39,14 @@ public:
     static constexpr type increment_value = type(0x400);
 
     // TODO: probably remove these once RBTree stops referencing them.
+    static bool try_lock_read(type& v) {
+        type vv = v;
+        if (!(vv & lock_bit) && bool_cmpxchg(&v, vv, vv+1)) {
+            acquire_fence();
+            return true;
+        }
+        return false;
+    }
     static void lock_read(type& v) {
         while (1) {
             type vv = v;
@@ -47,6 +55,15 @@ public:
             relax_fence();
         }
         acquire_fence();
+    }
+
+    static bool try_lock_write(type& v) {
+        type vv = v;
+        if ((vv & threadid_mask) == 0 && !(vv & lock_bit) && bool_cmpxchg(&v, vv, vv|lock_bit)) {
+            acquire_fence();
+            return true;
+        }
+        return false;
     }
     static void lock_write(type& v) {
         while (1) {

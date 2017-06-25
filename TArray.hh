@@ -46,7 +46,7 @@ public:
     }
     void transPut(size_type i, T x) const {
         assert(i < N);
-        Sto::item(this, i).add_write(x);
+        Sto::item(this, i).add_write(x, data_[i].vers);
     }
 
     get_type nontrans_get(size_type i) const {
@@ -75,7 +75,14 @@ public:
         txn.set_version_unlock(data_[i].vers, item);
     }
     void unlock(TransItem& item) override {
-        data_[item.key<size_type>()].vers.unlock();
+        // XXX no support for read/write lock upgrades
+        // XXX works only for blind writes
+        if (item.has_read()) {
+            TransactionTid::unlock_read(data_[item.key<size_type>()].vers.value());
+        } else {
+            TransactionTid::unlock_write(data_[item.key<size_type>()].vers.value());
+        }
+        //data_[item.key<size_type>()].vers.unlock();
     }
 
 private:
