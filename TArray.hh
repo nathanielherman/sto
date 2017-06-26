@@ -2,7 +2,7 @@
 #include "TWrapped.hh"
 #include "TArrayProxy.hh"
 
-template <typename T, unsigned N, template <typename> class W = TOpaqueWrapped>
+template <typename T, unsigned N, template <typename> class W = TNonopaqueWrapped>
 class TArray : public TObject {
 public:
     class iterator;
@@ -46,7 +46,7 @@ public:
     }
     void transPut(size_type i, T x) const {
         assert(i < N);
-        Sto::item(this, i).add_write(x, data_[i].vers);
+        Sto::item(this, i).add_write(x, const_cast<TNonopaqueVersion&>(data_[i].vers));
     }
 
     get_type nontrans_get(size_type i) const {
@@ -78,9 +78,9 @@ public:
         // XXX no support for read/write lock upgrades
         // XXX works only for blind writes
         if (item.has_read()) {
-            TransactionTid::unlock_read(data_[item.key<size_type>()].vers.value());
+            TransactionTid::unlock_read(const_cast<TNonopaqueVersion::type&>(data_[item.key<size_type>()].vers.value()));
         } else {
-            TransactionTid::unlock_write(data_[item.key<size_type>()].vers.value());
+            TransactionTid::unlock_write(const_cast<TNonopaqueVersion::type&>(data_[item.key<size_type>()].vers.value()));
         }
         //data_[item.key<size_type>()].vers.unlock();
     }

@@ -195,6 +195,7 @@ private:
     type v_;
 };
 
+#if 0
 template <> struct Container<USE_VECTOR> {
     typedef Vector<value_type> type;
     typedef typename type::size_type index_type;
@@ -427,6 +428,8 @@ template <> struct Container<USE_HASHTABLE_STR> {
 private:
     type v_;
 };
+
+#endif
 
 #if DATA_STRUCTURE == USE_QUEUE
 typedef Queue<value_type, ARRAY_SZ> QueueType;
@@ -1452,15 +1455,14 @@ void print_time(double time) {
 
 #define MAKE_TESTER(name, desc, type, ...)            \
     {name, desc, 0, new type<0, ## __VA_ARGS__>},     \
-    {name, desc, 1, new type<1, ## __VA_ARGS__>},     \
-    {name, desc, 2, new type<2, ## __VA_ARGS__>},     \
-    {name, desc, 4, new type<4, ## __VA_ARGS__>},     \
-    {name, desc, 6, new type<6, ## __VA_ARGS__>},     \
-    {name, desc, 7, new type<7, ## __VA_ARGS__>},     \
-    {name, desc, 8, new type<8, ## __VA_ARGS__>},     \
-    {name, desc, 9, new type<9, ## __VA_ARGS__>},     \
     {name, desc, 10, new type<10, ## __VA_ARGS__>}
-
+//    {name, desc, 1, new type<1, ## __VA_ARGS__>},
+//    {name, desc, 2, new type<2, ## __VA_ARGS__>},
+//    {name, desc, 4, new type<4, ## __VA_ARGS__>},
+//    {name, desc, 6, new type<6, ## __VA_ARGS__>},
+//    {name, desc, 7, new type<7, ## __VA_ARGS__>},
+//    {name, desc, 8, new type<8, ## __VA_ARGS__>},
+//    {name, desc, 9, new type<9, ## __VA_ARGS__>},
 struct Test {
     const char* name;
     const char* desc;
