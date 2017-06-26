@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <sstream>
 #include <fstream>
-#include <unordered_set>
+#include <set>
 #include <assert.h>
 #include <random>
 #include <thread>
@@ -685,7 +685,7 @@ void HotspotRW<DS>::per_thread_workload_init(int thread_id) {
         auto r = ud.sample();
         bool ro_txn = r < readonly_ceil;
 
-        std::unordered_set<StoSampling::index_t> req_keys;
+        std::set<StoSampling::index_t> req_keys;
 
         while (1) {
             auto k = ud.sample() % ARRAY_SZ;
@@ -845,7 +845,7 @@ void Hotspot2RW<DS>::per_thread_workload_init(int thread_id) {
         auto r = ud.sample();
         bool ro_txn = r < readonly_ceil;
 
-        std::unordered_set<StoSampling::index_t> req_keys;
+        std::set<StoSampling::index_t> req_keys;
 
         while (1) {
             auto k = ud.sample() % ARRAY_SZ;
