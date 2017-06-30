@@ -29,6 +29,10 @@
 #define PROC_TSC_FREQ 2.2 // Default processor base freq in GHz
 #endif
 
+#ifndef STO_2PL
+#define STO_2PL 1
+#endif
+
 #ifndef STO_DEBUG_HASH_COLLISIONS
 #define STO_DEBUG_HASH_COLLISIONS 0
 #endif
@@ -654,10 +658,13 @@ public:
     // Bounded spinning reader/writer locks
     // To be used with 2PL
     bool try_lock_read(TransItem& item, TNonopaqueVersion& vers) {
+        //printf("try_lock_read %lu (%lu)\n", item.key<size_t>(), vers.value());
         unsigned n = 0;
         while (1) {
-            if (TransactionTid::try_lock_read(const_cast<TransactionTid::type&>(vers.value())))
+            if (TransactionTid::try_lock_read(const_cast<TransactionTid::type&>(vers.value()))) {
+                //printf("read locked (%lu)\n", vers.value());
                 return true;
+            }
             ++n;
             if (item.has_read() || n == (1 << STO_SPIN_BOUND_WRITE))
                 return false;
@@ -666,6 +673,7 @@ public:
     }
 
     bool try_lock_write(TransItem& item, TNonopaqueVersion& vers) {
+        //printf("try_lock_write %lu\n", item.key<size_t>());
         unsigned n = 0;
         while (1) {
             if (TransactionTid::try_lock_write(const_cast<TransactionTid::type&>(vers.value())))
@@ -733,14 +741,19 @@ public:
         vers.set_version(v | flags);
     }
     void set_version_unlock(TNonopaqueVersion& vers, TransItem& item, TNonopaqueVersion::type flags = 0) const {
-        assert(state_ == s_committing_locked || state_ == s_committing);
-        tid_type v = commit_tid_ ? commit_tid_ : TransactionTid::next_unflagged_nonopaque_version(vers.value());
-        vers.set_version_unlock(v | flags);
+        (void)flags;
+        //printf("unlock write %lu\n", item.key<size_t>());
+        TransactionTid::unlock_write(const_cast<TNonopaqueVersion::type&>(vers.value()));
+        //assert(state_ == s_committing_locked || state_ == s_committing);
+        //tid_type v = commit_tid_ ? commit_tid_ : TransactionTid::next_unflagged_nonopaque_version(vers.value());
+        //vers.set_version_unlock(v | flags);
         item.clear_needs_unlock();
     }
     void assign_version_unlock(TNonopaqueVersion& vers, TransItem& item, TNonopaqueVersion::type flags = 0) const {
-        tid_type v = commit_tid_ ? commit_tid_ : TransactionTid::next_unflagged_nonopaque_version(vers.value());
-        vers = v | flags;
+        //tid_type v = commit_tid_ ? commit_tid_ : TransactionTid::next_unflagged_nonopaque_version(vers.value());
+        //vers = v | flags;
+        (void)flags;
+        TransactionTid::unlock_write(const_cast<TNonopaqueVersion::type&>(vers.value()));
         item.clear_needs_unlock();
     }
 
@@ -1012,16 +1025,17 @@ inline TransProxy& TransProxy::observe(TVersion version, bool add_read) {
     return *this;
 }
 
-inline TransProxy& TransProxy::observe(TNonopaqueVersion version, bool add_read) {
+inline TransProxy& TransProxy::observe(TNonopaqueVersion& version, bool add_read) {
     assert(!has_stash());
     //if (version.is_locked_elsewhere(t()->threadid_))
     //    t()->abort_because(item(), "locked", version.value());
     if (add_read && !has_read()) {
+        if (!t()->try_lock_read(item(), version))
+            t()->abort_because(item(), "read_lock_fail", version.value());
+        acquire_fence();
         item().__or_flags(TransItem::read_bit);
         //item().rdata_ = Packer<TNonopaqueVersion>::pack(t()->buf_, std::move(version));
         t()->any_nonopaque_ = true;
-        if (!t()->try_lock_read(item(), version))
-            t()->abort_because(item(), "read_lock_fail", version.value());
     }
     return *this;
 }
@@ -1119,6 +1133,7 @@ inline TransProxy& TransProxy::add_write(Args&&... args, TNonopaqueVersion& vers
         t()->any_writes_ = true;
         if (!t()->try_lock_write(item(), vers))
             t()->abort_because(item(), "write_lock_failed", vers.value());
+        item().__or_flags(TransItem::lock_bit);
     } else
         // TODO: this assumes that a given writer data always has the same type.
         // this is certainly true now but we probably shouldn't assume this in general

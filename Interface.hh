@@ -83,11 +83,13 @@ public:
         v = new_v;
     }
     static void unlock_read(type& v) {
+        //printf("unlock-r (%lu)\n", v);
         auto prev = __sync_fetch_and_add(&v, -1);
         (void)prev;
-        assert(prev > 0);
+        assert((prev & threadid_mask) > 0);
     }
     static void unlock_write(type& v) {
+        //printf("unlock-w (%lu)\n", v);
         v = v & ~lock_bit;
     }
 

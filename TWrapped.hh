@@ -36,7 +36,7 @@ static T read_atomic(const T* v, TransProxy item, const V& version, bool add_rea
 #endif
 }
 template <typename T, typename V>
-static T read_nonatomic(const T* v, TransProxy item, const V& version, bool add_read) {
+static T read_nonatomic(const T* v, TransProxy item, V& version, bool add_read) {
 #if STO_ABORT_ON_LOCKED
     item.observe(version, add_read);
     fence();
@@ -213,10 +213,10 @@ public:
     read_type wait_snapshot(TransProxy item, const version_type& version, bool add_read) const {
         return TWrappedAccess::read_wait_nonatomic(&v_, item, version, add_read);
     }
-    read_type read(TransProxy item, const version_type& version) const {
+    read_type read(TransProxy item, version_type& version) const {
         return TWrappedAccess::read_nonatomic(&v_, item, version, true);
     }
-    static read_type read(const T* vp, TransProxy item, const version_type& version) {
+    static read_type read(const T* vp, TransProxy item, version_type& version) {
         return TWrappedAccess::read_nonatomic(vp, item, version, true);
     }
     void write(T v) {

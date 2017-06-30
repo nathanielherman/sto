@@ -77,18 +77,21 @@ public:
     void unlock(TransItem& item) override {
         // XXX no support for read/write lock upgrades
         // XXX works only for blind writes
+        auto& vv = const_cast<TNonopaqueVersion::type&>(data_[item.key<size_type>()].vers.value());
         if (item.has_read()) {
-            TransactionTid::unlock_read(const_cast<TNonopaqueVersion::type&>(data_[item.key<size_type>()].vers.value()));
+            TransactionTid::unlock_read(vv);
         } else {
-            TransactionTid::unlock_write(const_cast<TNonopaqueVersion::type&>(data_[item.key<size_type>()].vers.value()));
+            TransactionTid::unlock_write(vv);
         }
         //data_[item.key<size_type>()].vers.unlock();
     }
 
 private:
     struct elem {
-        version_type vers;
+        mutable version_type vers;
         W<T> v;
+
+        elem() : vers(), v() {}
     };
     elem data_[N];
 

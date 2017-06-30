@@ -136,6 +136,7 @@ void Transaction::hard_check_opacity(TransItem* item, TransactionTid::type t) {
 }
 
 void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
+    //printf("stop %d, %u\n", committed, nwriteset);
 #if STO_TSC_PROFILE
     TimeKeeper<tc_cleanup> tk;
 #endif
@@ -163,7 +164,7 @@ void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
 
     TransItem* it;
     if (!any_writes_)
-        goto after_unlock;
+        goto unlock_reads;
 
     if (committed && !STO_SORT_WRITESET) {
         for (unsigned* idxit = writeset + nwriteset; idxit != writeset; ) {
@@ -172,8 +173,10 @@ void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
                 it = &tset0_[*idxit];
             else
                 it = &tset_[*idxit / tset_chunk][*idxit % tset_chunk];
-            if (it->needs_unlock())
+            if (it->needs_unlock()) {
+                //printf("unlock write %lu\n", it->key<size_t>());
                 it->owner()->unlock(*it);
+            }
         }
         for (unsigned* idxit = writeset + nwriteset; idxit != writeset; ) {
             --idxit;
@@ -189,8 +192,10 @@ void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
             it = &tset_[tset_size_ / tset_chunk][tset_size_ % tset_chunk];
             for (unsigned tidx = tset_size_; tidx != first_write_; --tidx) {
                 it = (tidx % tset_chunk ? it - 1 : &tset_[(tidx - 1) / tset_chunk][tset_chunk - 1]);
-                if (it->needs_unlock())
+                if (it->needs_unlock()) {
+                    //printf("unlock write %lu\n", it->key<size_t>());
                     it->owner()->unlock(*it);
+                }
             }
         }
         it = &tset_[tset_size_ / tset_chunk][tset_size_ % tset_chunk];
@@ -198,20 +203,24 @@ void Transaction::stop(bool committed, unsigned* writeset, unsigned nwriteset) {
             it = (tidx % tset_chunk ? it - 1 : &tset_[(tidx - 1) / tset_chunk][tset_chunk - 1]);
             if (it->has_write())
                 it->owner()->cleanup(*it, committed);
+            if (it->needs_unlock()) {
+                //printf("unlock write %lu\n", it->key<size_t>());
+                it->owner()->unlock(*it);
+            }
         }
     }
 
-#if STO_2PL
-	// release read locks
+unlock_reads:
+    it = nullptr;
     for (unsigned tidx = 0; tidx != tset_size_; ++tidx) {
         it = (tidx % tset_chunk ? it + 1 : tset_[tidx / tset_chunk]);
         if (it->has_read()) {
+            //printf("unlock read %lu\n", it->key<size_t>());
             it->owner()->unlock(*it);
         }
     }
-#endif
 
-after_unlock:
+//after_unlock:
     // TODO: this will probably mess up with nested transactions
     threadinfo_t& thr = tinfo[TThread::id()];
     if (thr.trans_end_callback)

@@ -239,7 +239,7 @@ class TransProxy {
     template <typename T>
     inline TransProxy& add_read_opaque(T rdata);
     inline TransProxy& observe(TVersion version, bool add_read);
-    inline TransProxy& observe(TNonopaqueVersion version, bool add_read);
+    inline TransProxy& observe(TNonopaqueVersion& version, bool add_read);
     inline TransProxy& observe(TCommutativeVersion version, bool add_read);
     inline TransProxy& observe(TVersion version);
     inline TransProxy& observe(TNonopaqueVersion version);
